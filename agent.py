@@ -1,9 +1,11 @@
+from datetime import datetime
+
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
 import json
 from audio import transcribe_audio
-from database import init_db, save_idea, read_ideas
+from database import init_db, save_idea, read_ideas, save_message, read_messages
 from pydantic import BaseModel
 
 load_dotenv()
@@ -73,6 +75,10 @@ available_tools = {
 }
 
 def execute_agent(message):
+    old_messages = read_messages("default")
+
+    print("\nHistorial de mensajes anteriores:", old_messages)
+
     messages = [
         {
             "role": "system",
@@ -81,11 +87,10 @@ def execute_agent(message):
             luego extrae la idea principal y guárdala en la categoría más apropiada.
             Siempre confirma lo que hiciste de forma breve."""
         },
-        {
-            "role": "user",
-            "content": message
-        }
+        *old_messages,
     ]
+
+    save_message("default", "user", datetime.now(), message)
 
     while True:
         response = client.chat.completions.create(
@@ -98,6 +103,8 @@ def execute_agent(message):
 
         if message.tool_calls:
             messages.append(message)
+
+            save_message("default", "assistant", datetime.now(), message.content, tool_calls=message.tool_calls)
 
             for tool_call in message.tool_calls:
                 name = tool_call.function.name
@@ -112,17 +119,17 @@ def execute_agent(message):
                     "tool_call_id": tool_call.id,
                     "content": result
                 })
+
+                save_message("default", "tool", datetime.now(), result, tool_call_id=tool_call.id)
         else:
             print(f"\nAgente: {message.content}\n")
+            save_message("default", "assistant", datetime.now(), message.content)
             break
 
 if __name__ == "__main__":
     init_db()
 
-    #execute_agent("Tengo una idea: crear un agente especializado en guardar progresos de rutinas de gimansio")
-
-    #execute_agent("¿Que ideas de gimnasio tengo?")
-
-    execute_agent("Transcribe este audio y guarda la idea: audio.m4a")
-
-    execute_agent("¿Que ideas personales tengo?")
+    execute_agent('Mi nombre es Adrian')
+    execute_agent('¿Cual es mi nombre?')
+    
+    print(read_messages("default"))
