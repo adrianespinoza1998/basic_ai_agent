@@ -77,8 +77,6 @@ available_tools = {
 def execute_agent(message):
     old_messages = read_messages("default")
 
-    print("\nHistorial de mensajes anteriores:", old_messages)
-
     messages = [
         {
             "role": "system",
@@ -122,14 +120,5 @@ def execute_agent(message):
 
                 save_message("default", "tool", datetime.now(), result, tool_call_id=tool_call.id)
         else:
-            print(f"\nAgente: {message.content}\n")
             save_message("default", "assistant", datetime.now(), message.content)
-            break
-
-if __name__ == "__main__":
-    init_db()
-
-    execute_agent('Mi nombre es Adrian')
-    execute_agent('¿Cual es mi nombre?')
-    
-    print(read_messages("default"))
+            return message.content
